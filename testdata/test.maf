@@ -1,0 +1,7 @@
+a score=275 EG2=6.8e-09 E=7.5e-13
+s Chr11 1122118 385 + 38115440 cttctaccatttttgagaaaccatagcagatttctccagattgataatttttctcctttgcctagcaat--aatagtat----cctttcatccaaattatcttcattgcaccatttaaaataattgcatccttgaagttctttgtttcgagtccgttgttcaaca-catccaaccacaaacatttcattactcaaaaaataaagtaatcactaa---------aatgaaactacaaccactg-----aacaaaccttgtaattagggcatc-ccaaaattgcttgccttcgttcttcacagttttcgccactctcaacacagcaacctccccacaatgacatatattggtttaaaccaatc---ctctagatgaaacagctcaagagctcccccatgagaaagacgaaca
+s Ctg0    26518 385 +   106115 CTTCTCCCTTTTTTGACAAACCAAAAGTGATTTTTCCAAAGTAATAATCTTTCTCCTTTGCC-----ATCCAATGGTATTATCCCTTTCATCTATATAATCTTCAGTGTGTTATTTGAAGAAATTACATCCTCGCACTTCTTCGTTTCGACTCCGCTGTTCAAAAACATCCAACaa-aaacatCTCA---------AGATAAAGCAA--ACTAATGTACCCCAAATAAAAACACAAC----GAAGAAAACAAACCTTGTAATTAGGGCAGCACCAAAAATGCTTTCCCTCATTCTTAACAGTTTTTGCGACTCTTAATACGACAAGCTCTACACAATAGCATAT-TTGGCT---GCCAACCATTCTCTTGATGAACCAACACGCAAGGTCCCCTATGAGCAAGACGAACA
+
+a score=251 EG2=1.2e-06 E=1.3e-10
+s Chr11 1999516 49 + 38115440 atatatatatatatatatatatatatatatatatatatatatattacgt
+s Ctg0    28624 49 +   106115 atatatatatatatatatatatatatatatatatatatatatatTACGT

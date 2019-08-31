@@ -1,0 +1,13 @@
+[package]
+name = "bio_utils"
+version = "0.1.0"
+authors = ["ban-m <ban-m@g.ecc.u-tokyo.ac.jp>"]
+edition = "2018"
+
+[dependencies]
+rand = "*"
+bio = "*"
+rayon = "*"
+regex = "*"
+lazy_static = "*"
+rust-htslib = "*"
