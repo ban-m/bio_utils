@@ -66,7 +66,7 @@ impl<R: io::Read> Iterator for Records<R> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default,Serialize,Deserialize)]
 pub struct Record {
     id: String,
     desc: Option<String>,
@@ -90,6 +90,9 @@ impl Record {
     }
     pub fn desc(&self) -> &Option<String> {
         &self.desc
+    }
+    pub fn len(&self)->usize{
+        self.seq.len()
     }
 }
 
