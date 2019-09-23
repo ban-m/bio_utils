@@ -1,3 +1,5 @@
+
+use serde::{Serialize,Deserialize};
 use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -66,7 +68,7 @@ impl<R: io::Read> Iterator for Records<R> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Record {
     id: String,
     desc: Option<String>,
@@ -81,6 +83,9 @@ impl Record {
     }
     pub fn is_empty(&self) -> bool {
         self.id.is_empty() && self.seq.is_empty()
+    }
+    pub fn len(&self) -> usize {
+        self.seq().len()
     }
     pub fn id(&self) -> &str {
         &self.id
