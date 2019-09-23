@@ -96,6 +96,9 @@ impl Record {
     pub fn desc(&self) -> &Option<String> {
         &self.desc
     }
+    pub fn len(&self)->usize{
+        self.seq.len()
+    }
 }
 
 impl std::fmt::Display for Record {

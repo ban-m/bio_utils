@@ -3,6 +3,7 @@ extern crate bio;
 extern crate regex;
 extern crate bytecount;
 extern crate rayon;
+#[macro_use]
 extern crate serde;
 // #[macro_use] extern crate lazy_static;
 extern crate rust_htslib;
