@@ -1,6 +1,7 @@
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 use std::io;
 use std::io::{BufRead, BufReader};
+use std::io::{BufWriter, Write};
 use std::path::Path;
 #[derive(Debug)]
 pub struct Reader<R: io::Read> {
@@ -100,9 +101,9 @@ impl Record {
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(ref desc) = self.desc {
-            writeln!(f, ">{} {}\n{}", self.id, desc, self.seq)
+            write!(f, ">{} {}\n{}", self.id, desc, self.seq)
         } else {
-            writeln!(f, ">{}\n{}", self.id, self.seq)
+            write!(f, ">{}\n{}", self.id, self.seq)
         }
     }
 }
@@ -134,8 +135,8 @@ pub fn parse_into_vec<P: AsRef<Path>>(file: P) -> std::io::Result<Vec<Record>> {
     }
 }
 
-pub fn parse_into_vec_from<R: io::Read>(reader:R) -> std::io::Result<Vec<Record>> {
-    let mut lines = BufReader::new(reader).lines().filter_map(|e|e.ok());
+pub fn parse_into_vec_from<R: io::Read>(reader: R) -> std::io::Result<Vec<Record>> {
+    let mut lines = BufReader::new(reader).lines().filter_map(|e| e.ok());
     let mut result = Vec::with_capacity(10000);
     let mut line = lines.next().unwrap();
     'outer: loop {
@@ -156,5 +157,30 @@ pub fn parse_into_vec_from<R: io::Read>(reader:R) -> std::io::Result<Vec<Record>
         } else {
             return Ok(result);
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Writer<W: Write> {
+    writer: BufWriter<W>,
+}
+
+impl<W: Write> Writer<W> {
+    pub fn new(w: W) -> Self {
+        Self {
+            writer: BufWriter::new(w),
+        }
+    }
+    pub fn write_record(&mut self, record: &Record) -> std::io::Result<()> {
+        self.writer.write_all(b">")?;
+        self.writer.write_all(record.id.as_bytes())?;
+        if let Some(ref desc) = &record.desc {
+            self.writer.write_all(b" ")?;
+            self.writer.write_all(desc.as_bytes())?;
+        }
+        self.writer.write_all(b"\n")?;
+        self.writer.write_all(record.seq.as_bytes())?;
+        self.writer.write_all(b"\n")?;
+        self.writer.flush()
     }
 }
