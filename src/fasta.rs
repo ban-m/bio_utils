@@ -1,4 +1,3 @@
-
 use serde::{Serialize,Deserialize};
 use std::io;
 use std::io::{BufRead, BufReader};
@@ -96,9 +95,6 @@ impl Record {
     pub fn desc(&self) -> &Option<String> {
         &self.desc
     }
-    pub fn len(&self)->usize{
-        self.seq.len()
-    }
 }
 
 impl std::fmt::Display for Record {
@@ -128,6 +124,31 @@ pub fn parse_into_vec<P: AsRef<Path>>(file: P) -> std::io::Result<Vec<Record>> {
                 break;
             } else {
                 record.seq.push_str(next);
+            }
+        }
+        if !record.seq.is_empty() {
+            result.push(record);
+        } else {
+            return Ok(result);
+        }
+    }
+}
+
+pub fn parse_into_vec_from<R: io::Read>(reader:R) -> std::io::Result<Vec<Record>> {
+    let mut lines = BufReader::new(reader).lines().filter_map(|e|e.ok());
+    let mut result = Vec::with_capacity(10000);
+    let mut line = lines.next().unwrap();
+    'outer: loop {
+        let mut record = Record::default();
+        let mut header = line[1..].splitn(2, ' ');
+        record.id = header.next().unwrap().to_owned();
+        record.desc = header.next().map(|e| e.to_owned());
+        while let Some(next) = lines.next() {
+            if next.starts_with('>') {
+                line = next;
+                break;
+            } else {
+                record.seq.push_str(&next);
             }
         }
         if !record.seq.is_empty() {
