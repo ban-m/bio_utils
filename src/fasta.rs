@@ -81,6 +81,15 @@ impl Record {
         self.desc = None;
         self.seq.clear();
     }
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn with_data(id: &str, desc: &Option<String>, seq: &[u8]) -> Self {
+        let id = id.to_string();
+        let desc = desc.clone();
+        let seq = String::from_utf8_lossy(seq).to_string();
+        Self { id, desc, seq }
+    }
     pub fn is_empty(&self) -> bool {
         self.id.is_empty() && self.seq.is_empty()
     }
@@ -93,8 +102,8 @@ impl Record {
     pub fn seq(&self) -> &[u8] {
         self.seq.as_bytes()
     }
-    pub fn desc(&self) -> &Option<String> {
-        &self.desc
+    pub fn desc(&self) -> Option<&String> {
+        self.desc.as_ref()
     }
 }
 
