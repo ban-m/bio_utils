@@ -123,7 +123,7 @@ pub fn parse_into_vec<P: AsRef<Path>>(file: P) -> std::io::Result<Vec<Record>> {
     let mut result = Vec::with_capacity(bytecount::count(lines.as_bytes(), b'>'));
     let mut lines = lines.lines();
     let mut line = lines.next().unwrap();
-    'outer: loop {
+    loop {
         let mut record = Record::default();
         let mut header = line[1..].splitn(2, ' ');
         record.id = header.next().unwrap().to_owned();
@@ -148,7 +148,7 @@ pub fn parse_into_vec_from<R: io::Read>(reader: R) -> std::io::Result<Vec<Record
     let mut lines = BufReader::new(reader).lines().filter_map(|e| e.ok());
     let mut result = Vec::with_capacity(10000);
     let mut line = lines.next().unwrap();
-    'outer: loop {
+    loop {
         let mut record = Record::default();
         let mut header = line[1..].splitn(2, ' ');
         record.id = header.next().unwrap().to_owned();

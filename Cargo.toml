@@ -13,4 +13,3 @@ lazy_static = "*"
 rust-htslib = "*"
 bytecount = "*"
 serde = { version = "1.0", features = ["derive"] }
-
