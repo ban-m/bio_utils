@@ -28,13 +28,15 @@ impl<R: io::Read> Reader<R> {
         if self.line.is_empty() {
             self.reader.read_line(&mut self.line)?;
         }
-        if !self.line.starts_with('>') {
+        if self.line.is_empty() {
+            Ok(1)
+        } else if !self.line.starts_with('>') {
             return Err(std::io::Error::from(std::io::ErrorKind::Other));
         } else {
             let mut header = self.line.split_whitespace();
             record.id = header.next().unwrap().trim_start_matches('>').to_string();
             record.desc = header.next().map(|e| e.to_string());
-            loop {
+            while !self.line.is_empty() {
                 self.line.clear();
                 self.reader.read_line(&mut self.line).unwrap();
                 if self.line.starts_with('>') {
@@ -60,7 +62,8 @@ impl<R: io::Read> Iterator for Records<R> {
     type Item = std::io::Result<Record>;
     fn next(&mut self) -> Option<Self::Item> {
         let mut record = Record::default();
-        match self.inner.read(&mut record) {
+        let result = self.inner.read(&mut record);
+        match result {
             Ok(_) if record.is_empty() => None,
             Ok(_) => Some(Ok(record)),
             Err(why) => Some(Err(why)),

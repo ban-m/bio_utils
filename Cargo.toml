@@ -6,10 +6,7 @@ edition = "2018"
 
 [dependencies]
 rand = "*"
-bio = "*"
 rayon = "*"
 regex = "*"
-lazy_static = "*"
-rust-htslib = "*"
 bytecount = "*"
 serde = { version = "1.0", features = ["derive"] }
