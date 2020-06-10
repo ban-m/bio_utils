@@ -137,15 +137,12 @@ impl Eq for LastTAB {}
 impl LastTAB {
     pub fn from_line(line: &str) -> Option<Self> {
         let line: Vec<&str> = line.split('\t').collect();
-        if line.len() < 11 {
-            return None;
-        }
         let score: u64 = line[0].parse().ok()?;
         let seq1_information = AlignInfo::from_splits(&line[1..=5])?;
         let seq2_information = AlignInfo::from_splits(&line[6..=10])?;
         let alignment = line[11].to_string();
         let (mut eg2, mut e) = (2., 3.); // Dummy values
-        if line.len() == 14 {
+        if line.len() > 13 {
             if line[12].starts_with("E=") {
                 e = match line[12][2..].parse() {
                     Ok(res) => res,
@@ -252,7 +249,7 @@ impl LastTAB {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum Op {
     /// Match of `usize` length.
     Match(usize),
