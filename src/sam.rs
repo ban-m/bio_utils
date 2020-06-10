@@ -87,7 +87,7 @@ fn combine_sam(mut acc: Vec<Coverage>, sam: &Sam) -> Vec<Coverage> {
     acc
 }
 
-pub fn load_sam_file(file: &Path) -> io::Result<Vec<Sam>> {
+pub fn load_sam_file<P: AsRef<Path>>(file: P) -> io::Result<Vec<Sam>> {
     // annotation for retuened value:(b,cigar,pos) where,
     //b: true when the read mapped to template strand,
     // cigar: cigar string for the alignment,
