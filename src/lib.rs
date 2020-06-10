@@ -16,3 +16,17 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 }
+
+#[inline]
+pub fn revcmp(seq: &[u8]) -> Vec<u8> {
+    seq.into_iter()
+        .rev()
+        .map(|&e| match e {
+            b'A' | b'a' => b'T',
+            b'C' | b'c' => b'G',
+            b'G' | b'g' => b'C',
+            b'T' | b't' => b'A',
+            _ => unreachable!(),
+        })
+        .collect()
+}

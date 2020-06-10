@@ -253,10 +253,13 @@ impl LastTAB {
 pub enum Op {
     /// Match of `usize` length.
     Match(usize),
-    /// Sequence insertion of `usize` length from the seq1.
-    /// In other words, this is insertion *to* sequence 2.
+    /// Sequence insertion of `usize` length to the seq1.
+    /// In other words, if we encounter Seq1In(l), the location of the
+    /// sequence 2 would increase by l.
     Seq1In(usize),
-    /// Sequence insertion with `usize` length from the seq2.
+    /// Sequence insertion with `usize` length to the seq2.
+    /// In other words, if we encounter Seq1In(l), the location of the
+    /// sequence 1 would increase by l.
     Seq2In(usize),
 }
 
