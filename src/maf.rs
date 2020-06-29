@@ -38,10 +38,10 @@ impl<R: io::Read> Reader<R> {
         loop {
             self.line.clear();
             let num_bytes = self.reader.read_line(&mut self.line)?;
-            if num_bytes == 0 && is_first{
+            if num_bytes == 0 && is_first {
                 // It reaches the EOF
-                break Ok(false)
-            }else if self.line.trim().is_empty(){
+                break Ok(false);
+            } else if self.line.trim().is_empty() {
                 // It reaches the boundary.
                 break Ok(true);
             } else {
@@ -80,8 +80,8 @@ impl fmt::Display for Record {
             res.push_str(&format!("pass={} ", pass));
         };
         if let Some(ref header) = self.header {
-            for field in header.iter(){
-                if field.len() == 2{
+            for field in header.iter() {
+                if field.len() == 2 {
                     res.push_str(&field[0]);
                     res.push('=');
                     res.push_str(&field[1]);
@@ -221,7 +221,7 @@ impl Record {
     {
         self.sequence.iter().find(predicate)
     }
-    fn add_line(&mut self, line: &str){
+    fn add_line(&mut self, line: &str) {
         // If the line is comment, ignore.
         if line.starts_with('a') {
             self.add_alignment(line);
@@ -233,14 +233,14 @@ impl Record {
     }
     fn add_alignment(&mut self, line: &str) {
         let contents: Vec<_> = line.split_whitespace().collect();
-        let mut header:Vec<Vec<String>> = vec![];
-        for field in contents{
-            if field.starts_with("score"){
+        let mut header: Vec<Vec<String>> = vec![];
+        for field in contents {
+            if field.starts_with("score") {
                 self.score = field.trim_start_matches("score=").parse().ok();
-            }else if field.starts_with("pass"){
+            } else if field.starts_with("pass") {
                 self.pass = field.trim_start_matches("pass=").parse().ok();
-            }else if !field.starts_with('a'){
-                header.push(field.split('=').map(|e|e.to_string()).collect());
+            } else if !field.starts_with('a') {
+                header.push(field.split('=').map(|e| e.to_string()).collect());
             }
         }
         self.header = if header.is_empty() {
@@ -381,13 +381,13 @@ mod tests {
         let mut record = Record::default();
         let result = file.read(&mut record).unwrap();
         res.push(record.clone());
-        eprintln!("{}",result);
+        eprintln!("{}", result);
         let result = file.read(&mut record).unwrap();
         res.push(record.clone());
-        eprintln!("{}",result);
+        eprintln!("{}", result);
         let result = file.read(&mut record).unwrap();
         res.push(record.clone());
-        eprintln!("{}",result);
-        debug_assert!(false,"{:?}",res);
+        eprintln!("{}", result);
+        // debug_assert!(false,"{:?}",res);
     }
 }
