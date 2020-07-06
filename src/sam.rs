@@ -28,14 +28,14 @@ fn merge_two_coverages(a: Vec<Coverage>, b: Vec<Coverage>) -> Vec<Coverage> {
         aiter.peek().map(|e| e.r_name.clone()),
         biter.peek().map(|e| e.r_name.clone()),
     ) {
-        if arname < brname {
-            res.push(aiter.next().unwrap().clone());
-        } else if arname > brname {
-            res.push(biter.next().unwrap().clone());
-        } else {
-            let acov = aiter.next().unwrap();
-            let bcov = biter.next().unwrap();
-            res.push(acov.merge(&bcov).clone());
+        match arname.cmp(&brname) {
+            std::cmp::Ordering::Less => res.push(aiter.next().unwrap().clone()),
+            std::cmp::Ordering::Greater => res.push(biter.next().unwrap().clone()),
+            std::cmp::Ordering::Equal => {
+                let acov = aiter.next().unwrap();
+                let bcov = biter.next().unwrap();
+                res.push(acov.merge(&bcov).clone());
+            }
         }
     }
     res.extend(aiter);
@@ -59,14 +59,14 @@ impl Coverage {
             let mut selfiter = self.cov.iter().peekable();
             let mut coviter = cov.cov.iter().peekable();
             while let (Some((s_index, _)), Some((c_index, _))) = (selfiter.peek(), coviter.peek()) {
-                if s_index < c_index {
-                    res.push(selfiter.next().unwrap().clone())
-                } else if s_index > c_index {
-                    res.push(coviter.next().unwrap().clone())
-                } else {
-                    let (s_index, s_depth) = selfiter.next().unwrap();
-                    let (_c_index, c_depth) = coviter.next().unwrap();
-                    res.push((*s_index, s_depth + c_depth))
+                match s_index.cmp(&c_index) {
+                    std::cmp::Ordering::Less => res.push(selfiter.next().unwrap().clone()),
+                    std::cmp::Ordering::Greater => res.push(coviter.next().unwrap().clone()),
+                    std::cmp::Ordering::Equal => {
+                        let (s_index, s_depth) = selfiter.next().unwrap();
+                        let (_c_index, c_depth) = coviter.next().unwrap();
+                        res.push((*s_index, s_depth + c_depth))
+                    }
                 }
             }
             res.extend(selfiter);

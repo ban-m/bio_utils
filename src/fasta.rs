@@ -31,7 +31,7 @@ impl<R: io::Read> Reader<R> {
         if self.line.is_empty() {
             Ok(1)
         } else if !self.line.starts_with('>') {
-            return Err(std::io::Error::from(std::io::ErrorKind::Other));
+            Err(std::io::Error::from(std::io::ErrorKind::Other))
         } else {
             let mut header = self.line.split_whitespace();
             record.id = header.next().unwrap().trim_start_matches('>').to_string();

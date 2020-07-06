@@ -19,7 +19,7 @@ mod tests {
 
 #[inline]
 pub fn revcmp(seq: &[u8]) -> Vec<u8> {
-    seq.into_iter()
+    seq.iter()
         .rev()
         .map(|&e| match e {
             b'A' | b'a' => b'T',
