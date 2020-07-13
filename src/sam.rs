@@ -10,8 +10,8 @@ use std::slice;
 pub fn into_coverage(reads: &[Sam]) -> Vec<Coverage> {
     reads
         .par_iter()
-        .fold(|| vec![], |acc, sam| combine_sam(acc, sam))
-        .reduce(|| vec![], merge_two_coverages)
+        .fold(Vec::new, |acc, sam| combine_sam(acc, sam))
+        .reduce(Vec::new, merge_two_coverages)
 }
 
 #[derive(Debug, Clone)]
@@ -60,8 +60,8 @@ impl Coverage {
             let mut coviter = cov.cov.iter().peekable();
             while let (Some((s_index, _)), Some((c_index, _))) = (selfiter.peek(), coviter.peek()) {
                 match s_index.cmp(&c_index) {
-                    std::cmp::Ordering::Less => res.push(selfiter.next().unwrap().clone()),
-                    std::cmp::Ordering::Greater => res.push(coviter.next().unwrap().clone()),
+                    std::cmp::Ordering::Less => res.push(*selfiter.next().unwrap()),
+                    std::cmp::Ordering::Greater => res.push(*coviter.next().unwrap()),
                     std::cmp::Ordering::Equal => {
                         let (s_index, s_depth) = selfiter.next().unwrap();
                         let (_c_index, c_depth) = coviter.next().unwrap();
