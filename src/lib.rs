@@ -6,6 +6,7 @@ extern crate regex;
 extern crate serde;
 // pub mod bam;
 pub mod fasta;
+pub mod alignments;
 pub mod lasttab;
 pub mod maf;
 pub mod sam;
