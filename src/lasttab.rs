@@ -1,7 +1,7 @@
 //! LastTAB is a struct to represent an alignment record produced by `last` program.
 
 /// The direction of the alignment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum Strand {
     /// The strand is forward.
     Forward,
