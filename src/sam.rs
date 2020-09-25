@@ -392,7 +392,7 @@ pub fn recover_alignment(
     operations.extend(ops_header.as_bytes());
     for op in iter {
         match op {
-            Align(l) => {
+            Align(l) | Match(l) | Mismatch(l) => {
                 let l = *l as usize;
                 seq1_with_gap.extend_from_slice(&seq1[seq1idx..(seq1idx + l)]);
                 seq2_with_gap.extend_from_slice(&seq2[seq2idx..(seq2idx + l)]);
