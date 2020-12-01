@@ -5,10 +5,11 @@ extern crate regex;
 #[macro_use]
 extern crate serde;
 // pub mod bam;
-pub mod fasta;
 pub mod alignments;
+pub mod fasta;
 pub mod lasttab;
 pub mod maf;
+pub mod paf;
 pub mod sam;
 #[cfg(test)]
 mod tests {

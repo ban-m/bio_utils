@@ -87,26 +87,122 @@ impl AlignInfo {
     }
 }
 
+use crate::sam::Sam;
+use std::collections::HashMap;
+pub fn try_from(value: &Sam, length: &HashMap<String, usize>) -> Result<LastTAB, &'static str> {
+    if value.pos() == 0 {
+        return Err("Alignment Invalid");
+    }
+    let score: u64 = value
+        .attr()
+        .iter()
+        .find(|x| x.starts_with("AS"))
+        .ok_or("AS tag is not valid.")?
+        .split(":")
+        .nth(2)
+        .ok_or("AS tag does not have sufficient fields.")?
+        .parse()
+        .map_err(|_| "Parsing fail.")?;
+    let eg2 = 0.;
+    let e = 0.;
+    let mut alignment = vec![];
+    let (mut head_clip, mut _tail_clip) = (0, 0);
+    let cigar = value.cigar();
+    for op in cigar.iter() {
+        use crate::sam::Op::*;
+        match &op {
+            Align(l) | Match(l) | Mismatch(l) => alignment.push(Op::Match(*l)),
+            Insertion(l) => alignment.push(Op::Seq1In(*l)),
+            Deletion(l) => alignment.push(Op::Seq2In(*l)),
+            SoftClip(l) | HardClip(l) if head_clip == 0 => head_clip = *l,
+            SoftClip(l) | HardClip(l) => _tail_clip = *l,
+            Skipped(_) => return Err("Skipped in Cigar."),
+            Padding(_) => return Err("Padding in Cigar."),
+        }
+    }
+    let matchlen_1 = cigar
+        .iter()
+        .map(|op| {
+            use crate::sam::Op::*;
+            match &op {
+                Deletion(l) | Align(l) | Match(l) | Mismatch(l) => *l,
+                _ => 0,
+            }
+        })
+        .sum::<usize>();
+    // Reference.
+    let seq1_len = length.get(value.r_name()).ok_or("Invalid Reference Name")?;
+    let seq1_information = AlignInfo {
+        seqname: value.r_name().to_string(),
+        seqstart: value.pos() - 1,
+        matchlen: matchlen_1,
+        direction: Strand::Forward,
+        seqlen: *seq1_len,
+    };
+    let matchlen_2 = cigar
+        .iter()
+        .map(|op| {
+            use crate::sam::Op::*;
+            match &op {
+                Insertion(l) | Align(l) | Match(l) | Mismatch(l) => *l,
+                _ => 0,
+            }
+        })
+        .sum::<usize>();
+    let total = cigar
+        .iter()
+        .map(|op| {
+            use crate::sam::Op::*;
+            match &op {
+                HardClip(l) | SoftClip(l) | Insertion(l) | Align(l) | Match(l) | Mismatch(l) => *l,
+                _ => 0,
+            }
+        })
+        .sum::<_>();
+    let direction = if value.is_forward() {
+        Strand::Forward
+    } else {
+        Strand::Reverse
+    };
+    let seq2_information = AlignInfo {
+        seqname: value.q_name().to_string(),
+        seqstart: head_clip,
+        matchlen: matchlen_2,
+        direction: direction,
+        seqlen: total,
+    };
+    let lt = LastTAB {
+        score,
+        alignment,
+        eg2,
+        e,
+        seq1_information,
+        seq2_information,
+    };
+    Ok(lt)
+}
+
 /// A struct to represent a last's TAB-format alignment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LastTAB {
     seq1_information: AlignInfo,
     seq2_information: AlignInfo,
     score: u64,
-    alignment: String,
+    alignment: Vec<Op>,
     eg2: f64,
     e: f64,
 }
 
 impl std::fmt::Display for LastTAB {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let alignment: Vec<_> = self.alignment.iter().map(|x| format!("{}", x)).collect();
         write!(
             f,
             "{}\t{}\t{}\t{}\tEG2={}\tE={}",
             self.score,
             self.seq1_information,
             self.seq2_information,
-            self.alignment,
+            alignment.join(","),
             self.eg2,
             self.e
         )
@@ -140,7 +236,10 @@ impl LastTAB {
         let score: u64 = line[0].parse().ok()?;
         let seq1_information = AlignInfo::from_splits(&line[1..=5])?;
         let seq2_information = AlignInfo::from_splits(&line[6..=10])?;
-        let alignment = line[11].to_string();
+        let alignment = line[11].split(',').fold(vec![], |mut res, op| {
+            Op::from_string(&mut res, op);
+            res
+        });
         let (mut eg2, mut e) = (2., 3.); // Dummy values
         if line.len() > 13 {
             if line[12].starts_with("E=") {
@@ -224,11 +323,8 @@ impl LastTAB {
     pub fn seq2_len(&self) -> usize {
         self.seq2_information.seqlen
     }
-    pub fn alignment(&self) -> Vec<Op> {
-        self.alignment.split(',').fold(vec![], |mut res, op| {
-            Op::from_string(&mut res, op);
-            res
-        })
+    pub fn alignment(&self) -> &[Op] {
+        &self.alignment
     }
     pub fn e_score(&self) -> f64 {
         self.e
@@ -238,9 +334,9 @@ impl LastTAB {
     }
     // Return alignment length. Not the length of the reference nor the query.
     pub fn alignment_length(&self) -> usize {
-        self.alignment()
-            .into_iter()
-            .map(|op| match op {
+        self.alignment
+            .iter()
+            .map(|op| match &op {
                 Op::Match(l) => l,
                 Op::Seq1In(l) => l,
                 Op::Seq2In(l) => l,
@@ -261,6 +357,15 @@ pub enum Op {
     /// In other words, if we encounter Seq1In(l), the location of the
     /// sequence 1 would increase by l.
     Seq2In(usize),
+}
+impl std::fmt::Display for Op {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Op::Match(l) => write!(f, "{}", l),
+            Op::Seq1In(l) => write!(f, "0:{}", l),
+            Op::Seq2In(l) => write!(f, "{}:0", l),
+        }
+    }
 }
 
 impl Op {
