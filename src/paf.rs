@@ -16,7 +16,6 @@ pub struct PAF {
     pub tags: std::collections::HashMap<String, String>,
 }
 
-
 impl PAF {
     pub fn new(line: &str) -> Option<Self> {
         let mut line = line.split("\t");

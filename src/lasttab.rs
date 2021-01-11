@@ -93,7 +93,7 @@ pub fn try_from(value: &Sam, length: &HashMap<String, usize>) -> Result<LastTAB,
     if value.pos() == 0 {
         return Err("Alignment Invalid");
     }
-    let score: u64 = value
+    let score: i64 = value
         .attr()
         .iter()
         .find(|x| x.starts_with("AS"))
@@ -101,8 +101,9 @@ pub fn try_from(value: &Sam, length: &HashMap<String, usize>) -> Result<LastTAB,
         .split(":")
         .nth(2)
         .ok_or("AS tag does not have sufficient fields.")?
-        .parse()
+        .parse::<i64>()
         .map_err(|_| "Parsing fail.")?;
+    let score = score.max(0) as u64;
     let eg2 = 0.;
     let e = 0.;
     let mut alignment = vec![];
