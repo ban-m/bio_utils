@@ -1,4 +1,4 @@
-use rayon::prelude::*;
+// use rayon::prelude::*;
 // use regex::Regex;
 use std::cmp::max;
 use std::fs::File;
@@ -8,10 +8,8 @@ use std::path::Path;
 use std::slice;
 
 pub fn into_coverage(reads: &[Sam]) -> Vec<Coverage> {
-    reads
-        .par_iter()
-        .fold(|| vec![], |acc, sam| combine_sam(acc, sam))
-        .reduce(|| vec![], merge_two_coverages)
+    reads.iter().fold(vec![], |acc, sam| combine_sam(acc, sam))
+    // . reduce(|| vec![], merge_two_coverages)
 }
 
 #[derive(Debug, Clone)]
@@ -20,6 +18,7 @@ pub struct Coverage {
     cov: Vec<(usize, u64)>,
 }
 
+#[allow(dead_code)]
 fn merge_two_coverages(a: Vec<Coverage>, b: Vec<Coverage>) -> Vec<Coverage> {
     let mut res = Vec::with_capacity(a.len().max(b.len()));
     let mut aiter = a.into_iter().peekable();

@@ -1,11 +1,7 @@
-extern crate bytecount;
-extern crate rand;
-extern crate rayon;
-extern crate regex;
 #[macro_use]
 extern crate serde;
-// pub mod bam;
 pub mod fasta;
+pub mod fastq;
 pub mod lasttab;
 pub mod maf;
 pub mod sam;
