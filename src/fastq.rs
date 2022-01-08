@@ -132,11 +132,11 @@ pub fn parse_into_vec_from<R: io::Read>(mut reader: R) -> std::io::Result<Vec<Re
     let mut result = Vec::new();
     loop {
         let id = match lines.next() {
-            Some(id) => {
+            Some(id) if !id.is_empty() => {
                 assert_eq!(id[0], b'@');
                 String::from_utf8_lossy(&id[1..]).to_string()
             }
-            None => break,
+            _ => break,
         };
         let seq = lines.next().unwrap().to_vec();
         lines.next().unwrap();
