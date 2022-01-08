@@ -9,7 +9,6 @@ use std::slice;
 
 pub fn into_coverage(reads: &[Sam]) -> Vec<Coverage> {
     reads.iter().fold(vec![], |acc, sam| combine_sam(acc, sam))
-    // . reduce(|| vec![], merge_two_coverages)
 }
 
 #[derive(Debug, Clone)]
@@ -27,14 +26,14 @@ fn merge_two_coverages(a: Vec<Coverage>, b: Vec<Coverage>) -> Vec<Coverage> {
         aiter.peek().map(|e| e.r_name.clone()),
         biter.peek().map(|e| e.r_name.clone()),
     ) {
-        if arname < brname {
-            res.push(aiter.next().unwrap().clone());
-        } else if arname > brname {
-            res.push(biter.next().unwrap().clone());
-        } else {
-            let acov = aiter.next().unwrap();
-            let bcov = biter.next().unwrap();
-            res.push(acov.merge(&bcov).clone());
+        match arname.cmp(&brname) {
+            std::cmp::Ordering::Less => res.push(aiter.next().unwrap().clone()),
+            std::cmp::Ordering::Greater => res.push(biter.next().unwrap().clone()),
+            std::cmp::Ordering::Equal => {
+                let acov = aiter.next().unwrap();
+                let bcov = biter.next().unwrap();
+                res.push(acov.merge(&bcov).clone());
+            }
         }
     }
     res.extend(aiter);
@@ -58,14 +57,14 @@ impl Coverage {
             let mut selfiter = self.cov.iter().peekable();
             let mut coviter = cov.cov.iter().peekable();
             while let (Some((s_index, _)), Some((c_index, _))) = (selfiter.peek(), coviter.peek()) {
-                if s_index < c_index {
-                    res.push(selfiter.next().unwrap().clone())
-                } else if s_index > c_index {
-                    res.push(coviter.next().unwrap().clone())
-                } else {
-                    let (s_index, s_depth) = selfiter.next().unwrap();
-                    let (_c_index, c_depth) = coviter.next().unwrap();
-                    res.push((*s_index, s_depth + c_depth))
+                match s_index.cmp(&c_index) {
+                    std::cmp::Ordering::Less => res.push(*selfiter.next().unwrap()),
+                    std::cmp::Ordering::Greater => res.push(*coviter.next().unwrap()),
+                    std::cmp::Ordering::Equal => {
+                        let (s_index, s_depth) = selfiter.next().unwrap();
+                        let (_c_index, c_depth) = coviter.next().unwrap();
+                        res.push((*s_index, s_depth + c_depth))
+                    }
                 }
             }
             res.extend(selfiter);
@@ -86,7 +85,7 @@ fn combine_sam(mut acc: Vec<Coverage>, sam: &Sam) -> Vec<Coverage> {
     acc
 }
 
-pub fn load_sam_file(file: &Path) -> io::Result<Vec<Sam>> {
+pub fn load_sam_file<P: AsRef<Path>>(file: P) -> io::Result<Vec<Sam>> {
     // annotation for retuened value:(b,cigar,pos) where,
     //b: true when the read mapped to template strand,
     // cigar: cigar string for the alignment,
@@ -112,8 +111,9 @@ pub struct Sam {
     tlen: usize,
     seq: String,
     qual: Vec<u8>,
-    attr: Option<String>,
+    attr: Vec<String>,
 }
+
 use std::fmt;
 impl fmt::Display for Sam {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -132,41 +132,32 @@ impl fmt::Display for Sam {
             self.seq,
             self.qual_as_str()
         )?;
-        match &self.attr {
-            Some(ref attr) => write!(f, "\t{}", attr),
-            None => write!(f, ""),
+        if !self.attr.is_empty() {
+            write!(f, "\t{}", self.attr.join("\t"))?
         }
+        Ok(())
     }
 }
 
 impl Sam {
+    pub fn attr(&self) -> &[String] {
+        &self.attr
+    }
     pub fn new(input: &str) -> Option<Self> {
         let mut contents = input.split('\t');
-        let q_name = contents.next()?.to_string();
-        let flag = contents.next()?.parse().ok()?;
-        let r_name = contents.next()?.to_string();
-        let pos = contents.next()?.parse().ok()?;
-        let mapq = contents.next()?.parse().ok()?;
-        let cigar = contents.next()?.to_string();
-        let rnext = contents.next()?.to_string();
-        let pnext = contents.next()?.parse().ok()?;
-        let tlen = contents.next()?.parse().ok()?;
-        let seq = contents.next()?.to_string();
-        let qual = contents.next()?.bytes().map(|e| e - 33).collect();
-        let attr = contents.next().map(|e| e.to_string());
         Some(Sam {
-            q_name,
-            flag,
-            r_name,
-            pos,
-            mapq,
-            cigar,
-            rnext,
-            pnext,
-            tlen,
-            seq,
-            qual,
-            attr,
+            q_name: contents.next()?.to_string(),
+            flag: contents.next()?.parse().ok()?,
+            r_name: contents.next()?.to_string(),
+            pos: contents.next()?.parse().ok()?,
+            mapq: contents.next()?.parse().ok()?,
+            cigar: contents.next()?.to_string(),
+            rnext: contents.next()?.to_string(),
+            pnext: contents.next()?.parse().ok()?,
+            tlen: contents.next()?.parse().ok()?,
+            seq: contents.next()?.to_string(),
+            qual: contents.next()?.bytes().map(|e| e - 33).collect(),
+            attr: contents.map(|e| e.to_string()).collect(),
         })
     }
     pub fn q_name(&self) -> &str {
@@ -272,7 +263,7 @@ impl Sam {
             cov,
         }
     }
-    fn cigar_as_str(&self) -> &str {
+    pub fn cigar_as_str(&self) -> &str {
         &self.cigar
     }
     fn qual_as_str(&self) -> String {
@@ -380,18 +371,18 @@ pub fn recover_alignment(
     let seq1_header = match iter[0] {
         SoftClip(l) | HardClip(l) => {
             seq1idx += l;
-            format!("[head {:05} base]", l)
+            format!("[head {:06} base]", l)
         }
-        _ => "[head 00000 base]".to_string(),
+        _ => "[head 000000 base]".to_string(),
     };
-    let seq2_header = format!("[head {:05} base]", pos);
-    let ops_header = empty_string("[head 00000 base]".len());
+    let seq2_header = format!("[head {:06} base]", pos);
+    let ops_header = empty_string("[head 000000 base]".len());
     seq1_with_gap.extend(seq1_header.as_bytes());
     seq2_with_gap.extend(seq2_header.as_bytes());
     operations.extend(ops_header.as_bytes());
     for op in iter {
         match op {
-            Align(l) => {
+            Align(l) | Match(l) | Mismatch(l) => {
                 let l = *l as usize;
                 seq1_with_gap.extend_from_slice(&seq1[seq1idx..(seq1idx + l)]);
                 seq2_with_gap.extend_from_slice(&seq2[seq2idx..(seq2idx + l)]);
