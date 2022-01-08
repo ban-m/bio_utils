@@ -34,11 +34,13 @@ impl<R: io::Read> Reader<R> {
         if !self.line[0] == b'@' {
             return Err(std::io::Error::from(std::io::ErrorKind::Other));
         }
+        self.line.pop().unwrap();
         record.id = String::from_utf8_lossy(&self.line[1..]).to_string();
         // Base
         self.line.clear();
         self.reader.read_until(b'\n', &mut self.line)?;
         assert!(record.seq.is_empty());
+        self.line.pop().unwrap();
         record.seq.extend_from_slice(&self.line);
         // Empty
         self.line.clear();
@@ -47,13 +49,8 @@ impl<R: io::Read> Reader<R> {
         self.line.clear();
         self.reader.read_until(b'\n', &mut self.line)?;
         assert!(record.qual.is_empty());
+        self.line.pop().unwrap();
         record.qual.extend_from_slice(&self.line);
-        eprintln!(
-            "size:{},{},{}",
-            record.id.chars().count(),
-            record.seq().len(),
-            record.qual.len()
-        );
         Ok(1)
     }
     pub fn records(self) -> Records<R> {
@@ -122,7 +119,7 @@ impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let seq = String::from_utf8_lossy(&self.seq);
         let qual = String::from_utf8_lossy(&self.qual);
-        write!(f, ">{}\n{}\n+\n{}", self.id, seq, qual)
+        write!(f, "@{}\n{}\n+\n{}", self.id, seq, qual)
     }
 }
 
