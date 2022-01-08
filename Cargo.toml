@@ -5,8 +5,5 @@ authors = ["ban-m <ban-m@g.ecc.u-tokyo.ac.jp>"]
 edition = "2018"
 
 [dependencies]
-# rand = "*"
-# rayon = "*"
-# regex = "*"
 bytecount = "*"
 serde = { version = "1.0", features = ["derive"] }

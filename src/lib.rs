@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate serde;
+pub mod alignments;
 pub mod fasta;
 pub mod fastq;
 pub mod lasttab;
