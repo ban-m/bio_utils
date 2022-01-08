@@ -125,24 +125,27 @@ pub fn parse_into_vec<P: AsRef<Path>>(file: P) -> std::io::Result<Vec<Record>> {
     parse_into_vec_from(reader)
 }
 
-pub fn parse_into_vec_from<R: io::Read>(mut reader: R) -> std::io::Result<Vec<Record>> {
-    let mut buffer = vec![];
-    reader.read_to_end(&mut buffer)?;
-    let mut lines = buffer.split(|&x| x == b'\n');
-    let mut result = Vec::new();
-    loop {
-        let id = match lines.next() {
-            Some(id) if !id.is_empty() => {
-                assert_eq!(id[0], b'@');
-                String::from_utf8_lossy(&id[1..]).to_string()
-            }
-            _ => break,
-        };
-        let seq = lines.next().unwrap().to_vec();
-        lines.next().unwrap();
-        let qual = lines.next().unwrap().to_vec();
-        let record = Record { id, qual, seq };
-        result.push(record);
-    }
-    Ok(result)
+pub fn parse_into_vec_from<R: io::Read>(reader: R) -> std::io::Result<Vec<Record>> {
+    Ok(Reader::new(reader)
+        .records()
+        .filter_map(|e| e.ok())
+        .fuse()
+        .collect())
+    // let mut lines = buffer.split(|&x| x == b'\n');
+    // let mut result = Vec::new();
+    // loop {
+    //     let id = match lines.next() {
+    //         Some(id) if !id.is_empty() => {
+    //             assert_eq!(id[0], b'@');
+    //             String::from_utf8_lossy(&id[1..]).to_string()
+    //         }
+    //         _ => break,
+    //     };
+    //     let seq = lines.next().unwrap().to_vec();
+    //     lines.next().unwrap();
+    //     let qual = lines.next().unwrap().to_vec();
+    //     let record = Record { id, qual, seq };
+    //     result.push(record);
+    // }
+    // Ok(result)
 }
