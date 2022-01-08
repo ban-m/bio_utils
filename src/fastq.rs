@@ -25,6 +25,7 @@ impl<R: io::Read> Reader<R> {
     }
     pub fn read(&mut self, record: &mut Record) -> std::io::Result<usize> {
         // Note that the fastq file is four lines each.
+        self.line.clear();
         record.clear();
         self.reader.read_until(b'\n', &mut self.line)?;
         if self.line.is_empty() {
@@ -47,6 +48,12 @@ impl<R: io::Read> Reader<R> {
         self.reader.read_until(b'\n', &mut self.line)?;
         assert!(record.qual.is_empty());
         record.qual.extend_from_slice(&self.line);
+        eprintln!(
+            "size:{},{},{}",
+            record.id.chars().count(),
+            record.seq().len(),
+            record.qual.len()
+        );
         Ok(1)
     }
     pub fn records(self) -> Records<R> {
@@ -131,21 +138,4 @@ pub fn parse_into_vec_from<R: io::Read>(reader: R) -> std::io::Result<Vec<Record
         .filter_map(|e| e.ok())
         .fuse()
         .collect())
-    // let mut lines = buffer.split(|&x| x == b'\n');
-    // let mut result = Vec::new();
-    // loop {
-    //     let id = match lines.next() {
-    //         Some(id) if !id.is_empty() => {
-    //             assert_eq!(id[0], b'@');
-    //             String::from_utf8_lossy(&id[1..]).to_string()
-    //         }
-    //         _ => break,
-    //     };
-    //     let seq = lines.next().unwrap().to_vec();
-    //     lines.next().unwrap();
-    //     let qual = lines.next().unwrap().to_vec();
-    //     let record = Record { id, qual, seq };
-    //     result.push(record);
-    // }
-    // Ok(result)
 }
