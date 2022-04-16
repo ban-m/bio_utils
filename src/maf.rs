@@ -229,10 +229,16 @@ impl Record {
     }
     fn add_alignment(&mut self, line: &str) {
         let mut header: Vec<_> = vec![];
-        for field in line.split_whitespace() {
+        for field in line.split_whitespace().skip(1) {
             let mut slots = field.split('=');
-            let key = slots.next().expect(&format!("{field}"));
-            let value = slots.next().expect(&format!("{field}"));
+            let key = match slots.next() {
+                Some(res) => res,
+                None => continue,
+            };
+            let value = match slots.next() {
+                Some(res) => res,
+                None => continue,
+            };
             if key == "score" {
                 self.score = value.parse().ok();
             } else if key == "pass" {
