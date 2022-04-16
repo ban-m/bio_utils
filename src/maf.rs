@@ -64,7 +64,7 @@ pub struct Record {
     // Some field
     score: Option<f64>,
     pass: Option<u64>,
-    header: Option<Vec<Vec<String>>>,
+    header: Vec<(String, String)>,
     sequence: Vec<Seq>,
     sequence_index: usize,
 }
@@ -79,16 +79,12 @@ impl fmt::Display for Record {
         if let Some(pass) = self.score {
             res.push_str(&format!("pass={} ", pass));
         };
-        if let Some(ref header) = self.header {
-            for field in header.iter() {
-                if field.len() == 2 {
-                    res.push_str(&field[0]);
-                    res.push('=');
-                    res.push_str(&field[1]);
-                    res.push(' ');
-                }
-            }
-        };
+        for (key, val) in self.header.iter() {
+            res.push_str(key);
+            res.push('=');
+            res.push_str(val);
+            res.push(' ');
+        }
         writeln!(f, "{}", res)?;
         for seq in &self.sequence {
             writeln!(f, "{}", seq)?;
@@ -184,14 +180,14 @@ impl Record {
     pub fn is_empty(&self) -> bool {
         self.score.is_none()
             && self.pass.is_none()
-            && self.header.is_none()
+            && self.header.is_empty()
             && self.sequence.is_empty()
             && self.sequence_index == 0
     }
     pub fn clear(&mut self) {
         self.score = None;
         self.pass = None;
-        self.header = None;
+        self.header = Vec::new();
         self.sequence.iter_mut().for_each(|e| e.clear());
         self.sequence_index = 0;
     }
@@ -201,7 +197,7 @@ impl Record {
     pub fn pass(&self) -> Option<u64> {
         self.pass
     }
-    pub fn other_header(&self) -> &Option<Vec<Vec<String>>> {
+    pub fn other_header(&self) -> &[(String, String)] {
         &self.header
     }
     pub fn sequence(&self) -> &[Seq] {
@@ -232,22 +228,28 @@ impl Record {
         }
     }
     fn add_alignment(&mut self, line: &str) {
-        let contents: Vec<_> = line.split_whitespace().collect();
-        let mut header: Vec<Vec<String>> = vec![];
-        for field in contents {
-            if field.starts_with("score") {
-                self.score = field.trim_start_matches("score=").parse().ok();
-            } else if field.starts_with("pass") {
-                self.pass = field.trim_start_matches("pass=").parse().ok();
-            } else if !field.starts_with('a') {
-                header.push(field.split('=').map(|e| e.to_string()).collect());
+        let mut header: Vec<_> = vec![];
+        for field in line.split_whitespace() {
+            let mut field = field.split('=');
+            let key = field.next().unwrap();
+            let value = field.next().unwrap();
+            if key == "score" {
+                self.score = value.parse().ok();
+            } else if key == "pass" {
+                self.pass = value.parse().ok();
+            } else {
+                header.push((key.to_string(), value.to_string()));
             }
+            // if field.starts_with("score") {
+            //     self.score = field.trim_start_matches("score=").parse().ok();
+            // } else if field.starts_with("pass") {
+            //     self.pass = field.trim_start_matches("pass=").parse().ok();
+            // } else if !field.starts_with('a') {
+            //     header.push(
+            //     header.push(field.split('=').map(|e| e.to_string()).collect());
+            // }
         }
-        self.header = if header.is_empty() {
-            None
-        } else {
-            Some(header)
-        };
+        self.header = header;
     }
     fn add_sequence(&mut self, line: &str) -> Result<(), std::num::ParseIntError> {
         let seq: Vec<_> = line.split_whitespace().collect();
@@ -335,14 +337,14 @@ mod tests {
             .collect();
         assert!(!file[0].is_empty());
         assert_eq!(file[0].score(), Some(275.0));
-        assert!(file[0].other_header().is_some());
+        assert!(!file[0].other_header().is_empty());
         assert!(file[0].with_query_name("Chr11").is_some());
         assert!(file[0]
             .find_sequence(|e| e.name().starts_with("Ctg0"))
             .is_some());
         assert!(!file[1].is_empty());
         assert_eq!(file[1].score(), Some(251.0));
-        assert!(file[1].other_header().is_some());
+        assert!(!file[1].other_header().is_empty());
         assert!(file[1].with_query_name("Chr11").is_some());
         assert!(file[1].with_query_name("Ctg232").is_none());
     }
