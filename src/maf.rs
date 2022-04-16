@@ -231,8 +231,8 @@ impl Record {
         let mut header: Vec<_> = vec![];
         for field in line.split_whitespace() {
             let mut field = field.split('=');
-            let key = field.next().expect(&format!("{line}"));
-            let value = field.next().expect(&format!("{line}"));
+            let key = field.next().expect(&format!("{field}"));
+            let value = field.next().expect(&format!("{field}"));
             if key == "score" {
                 self.score = value.parse().ok();
             } else if key == "pass" {
