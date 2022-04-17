@@ -161,7 +161,7 @@ impl Seq {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Strand {
     Forward,
     Reverse,
@@ -246,14 +246,6 @@ impl Record {
             } else {
                 header.push((key.to_string(), value.to_string()));
             }
-            // if field.starts_with("score") {
-            //     self.score = field.trim_start_matches("score=").parse().ok();
-            // } else if field.starts_with("pass") {
-            //     self.pass = field.trim_start_matches("pass=").parse().ok();
-            // } else if !field.starts_with('a') {
-            //     header.push(
-            //     header.push(field.split('=').map(|e| e.to_string()).collect());
-            // }
         }
         self.header = header;
     }
