@@ -110,6 +110,14 @@ impl Record {
     }
 }
 
+impl std::convert::Into<(String, Option<String>, String)> for Record {
+    fn into(self) -> (String, Option<String>, String) {
+        match self {
+            Record { id, desc, seq } => (id, desc, seq),
+        }
+    }
+}
+
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(ref desc) = self.desc {
