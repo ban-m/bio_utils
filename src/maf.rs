@@ -6,6 +6,13 @@ use std::fs;
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
+
+/// Parse the given file into a vector.
+pub fn parse_into_vec<P: AsRef<Path>>(path: P) -> std::io::Result<Vec<Record>> {
+    let reader = Reader::from_file(path)?;
+    Ok(reader.records().filter_map(|r| r.ok()).collect())
+}
+
 /// A MAF reader.
 #[derive(Debug)]
 pub struct Reader<R: io::Read> {
