@@ -1,54 +1,35 @@
-// use rayon::prelude::*;
-// use regex::Regex;
+//! Tiny library to read SAM file(read only).
 use std::cmp::max;
-use std::fs::File;
-use std::io;
-use std::io::{BufRead, BufReader};
-use std::path::Path;
-use std::slice;
+use std::io::BufRead;
 
-pub fn into_coverage(reads: &[Sam]) -> Vec<Coverage> {
-    reads.iter().fold(vec![], |acc, sam| combine_sam(acc, sam))
-}
-
+/// Coverage on a contig.
 #[derive(Debug, Clone)]
 pub struct Coverage {
     r_name: String,
     cov: Vec<(usize, u64)>,
 }
 
-#[allow(dead_code)]
-fn merge_two_coverages(a: Vec<Coverage>, b: Vec<Coverage>) -> Vec<Coverage> {
-    let mut res = Vec::with_capacity(a.len().max(b.len()));
-    let mut aiter = a.into_iter().peekable();
-    let mut biter = b.into_iter().peekable();
-    while let (Some(arname), Some(brname)) = (
-        aiter.peek().map(|e| e.r_name.clone()),
-        biter.peek().map(|e| e.r_name.clone()),
-    ) {
-        match arname.cmp(&brname) {
-            std::cmp::Ordering::Less => res.push(aiter.next().unwrap().clone()),
-            std::cmp::Ordering::Greater => res.push(biter.next().unwrap().clone()),
-            std::cmp::Ordering::Equal => {
-                let acov = aiter.next().unwrap();
-                let bcov = biter.next().unwrap();
-                res.push(acov.merge(&bcov).clone());
-            }
-        }
+fn combine_sam(mut acc: Vec<Coverage>, sam: &Record) -> Vec<Coverage> {
+    match acc.binary_search_by(|probe| probe.r_name.cmp(&sam.r_name)) {
+        Err(index) => acc.insert(index, sam.to_coverage()),
+        Ok(index) => acc[index] = acc[index].merge(&sam.to_coverage()),
     }
-    res.extend(aiter);
-    res.extend(biter);
-    res
+    acc
 }
 
 impl Coverage {
+    /// Name of the reference (or contig)
     pub fn r_name(&self) -> &str {
         &self.r_name
     }
-    pub fn get_cov(&self) -> slice::Iter<(usize, u64)> {
-        self.cov.iter()
+    /// Get the coverage.
+    pub fn cov(&self) -> &[(usize, u64)] {
+        self.cov.as_slice()
     }
-
+    /// Convert SAM records into the coverages.
+    pub fn new(records: &[Record]) -> Vec<Coverage> {
+        records.iter().fold(vec![], combine_sam)
+    }
     fn merge(&self, cov: &Self) -> Self {
         let mut res = Vec::with_capacity(max(self.cov.len(), cov.cov.len()));
         if self.r_name != cov.r_name {
@@ -57,7 +38,7 @@ impl Coverage {
             let mut selfiter = self.cov.iter().peekable();
             let mut coviter = cov.cov.iter().peekable();
             while let (Some((s_index, _)), Some((c_index, _))) = (selfiter.peek(), coviter.peek()) {
-                match s_index.cmp(&c_index) {
+                match s_index.cmp(c_index) {
                     std::cmp::Ordering::Less => res.push(*selfiter.next().unwrap()),
                     std::cmp::Ordering::Greater => res.push(*coviter.next().unwrap()),
                     std::cmp::Ordering::Equal => {
@@ -77,29 +58,61 @@ impl Coverage {
     }
 }
 
-fn combine_sam(mut acc: Vec<Coverage>, sam: &Sam) -> Vec<Coverage> {
-    match acc.binary_search_by(|probe| probe.r_name.cmp(&sam.r_name)) {
-        Err(index) => acc.insert(index, sam.to_coverage()),
-        Ok(index) => acc[index] = acc[index].merge(&sam.to_coverage()),
-    }
-    acc
-}
-
-pub fn load_sam_file<P: AsRef<Path>>(file: P) -> io::Result<Vec<Sam>> {
-    // annotation for retuened value:(b,cigar,pos) where,
-    //b: true when the read mapped to template strand,
-    // cigar: cigar string for the alignment,
-    // pos: First position of matched base
-    Ok(BufReader::new(File::open(file)?)
-        .lines()
-        .filter_map(|e| e.ok())
-        .skip_while(|e| e.starts_with('@'))
-        .filter_map(|e| Sam::new(&e))
-        .collect())
-}
-
+/// SAM file.
 #[derive(Debug, Clone)]
 pub struct Sam {
+    /// Headers(begin with '@')
+    pub headers: Vec<Header>,
+    /// SAM records.
+    pub records: Vec<Record>,
+}
+
+impl Sam {
+    /// Read SAM file from the BufferedReader.
+    pub fn from_reader<R: BufRead>(rdr: R) -> Sam {
+        let mut headers = vec![];
+        let mut records = vec![];
+        for line in rdr.lines().filter_map(|x| x.ok()) {
+            if line.starts_with('@') {
+                headers.push(Header::new(&line).unwrap());
+            } else {
+                records.push(line.parse::<Record>().unwrap());
+            }
+        }
+        Self { headers, records }
+    }
+}
+
+/// SAM header file.
+#[derive(Debug, Clone)]
+pub struct Header {
+    /// Tag name (NN for `@NN`)
+    pub tag: String,
+    /// Attributes for this tag. Each attribute is separated by '\t',
+    /// and in "AttributeName:AttributeValue" format.
+    pub attrs: Vec<(String, String)>,
+}
+
+impl Header {
+    fn new(line: &str) -> Option<Self> {
+        let mut line = line.split('\t');
+        let tag: String = line.next()?.trim_start_matches('@').to_string();
+        let attrs: Vec<_> = line
+            .filter_map(|attr| {
+                let mut attr = attr.splitn(2, ':');
+                let key = attr.next()?.to_string();
+                let value = attr.next()?.to_string();
+                Some((key, value))
+            })
+            .collect();
+        Some(Self { tag, attrs })
+    }
+}
+
+/// SAM Record. The files can be accessed via method calling, such as [`Record::q_name()`].
+/// Since this struct implements [`std::str::FromStr`], it is possible to `let sam_record:Sam = line.parse().unwrap();` to parse the record.
+#[derive(Debug, Clone)]
+pub struct Record {
     q_name: String,
     flag: u32,
     r_name: String,
@@ -115,7 +128,7 @@ pub struct Sam {
 }
 
 use std::fmt;
-impl fmt::Display for Sam {
+impl fmt::Display for Record {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -133,32 +146,77 @@ impl fmt::Display for Sam {
             self.qual_as_str()
         )?;
         if !self.attr.is_empty() {
-            write!(f, "\t{}", self.attr.join("\t"))?
+            write!(f, "\t{}", self.attr.join("\t"))?;
         }
         Ok(())
     }
 }
 
-impl Sam {
-    pub fn attr(&self) -> &[String] {
-        &self.attr
-    }
-    pub fn new(input: &str) -> Option<Self> {
+/// Error raised when parsing of a SAM record fails
+#[derive(Debug, Clone, Copy)]
+pub struct ParseSamError {}
+
+impl std::str::FromStr for Record {
+    type Err = ParseSamError;
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
         let mut contents = input.split('\t');
-        Some(Sam {
-            q_name: contents.next()?.to_string(),
-            flag: contents.next()?.parse().ok()?,
-            r_name: contents.next()?.to_string(),
-            pos: contents.next()?.parse().ok()?,
-            mapq: contents.next()?.parse().ok()?,
-            cigar: contents.next()?.to_string(),
-            rnext: contents.next()?.to_string(),
-            pnext: contents.next()?.parse().ok()?,
-            tlen: contents.next()?.parse().ok()?,
-            seq: contents.next()?.to_string(),
-            qual: contents.next()?.bytes().map(|e| e - 33).collect(),
-            attr: contents.map(|e| e.to_string()).collect(),
+        fn map<T>(x: Option<T>) -> Result<T, ParseSamError> {
+            match x {
+                Some(x) => Ok(x),
+                None => Err(ParseSamError {}),
+            }
+        }
+        let q_name = map(contents.next().map(|s| s.to_string()))?;
+        let flag = map(contents.next().and_then(|x| x.parse().ok()))?;
+        let r_name = map(contents.next())?.to_string();
+        let pos = map(contents.next().and_then(|x| x.parse().ok()))?;
+        let mapq = map(contents.next().and_then(|x| x.parse().ok()))?;
+        let cigar = map(contents.next())?.to_string();
+        let rnext = map(contents.next())?.to_string();
+        let pnext = map(contents.next().and_then(|x| x.parse().ok()))?;
+        let tlen = map(contents.next().and_then(|x| x.parse().ok()))?;
+        let seq = map(contents.next())?.to_string();
+        let qual = map(contents.next())?.bytes().map(|e| e - 33).collect();
+        let attr = map(contents.next().map(|e| e.to_string()))?;
+        let attr: Vec<_> = attr.split('\t').map(|x| x.to_string()).collect();
+        Ok(Self {
+            q_name,
+            flag,
+            r_name,
+            pos,
+            mapq,
+            cigar,
+            rnext,
+            pnext,
+            tlen,
+            seq,
+            qual,
+            attr,
         })
+    }
+}
+
+impl Record {
+    pub fn to_coverage(&self) -> Coverage {
+        let mut cov = vec![];
+        let mut start = self.pos; // reference position
+        for op in &self.cigar() {
+            use self::Op::*;
+            match *op {
+                Align(b) | Match(b) => {
+                    for i in 0..b {
+                        cov.push((start + i, 1));
+                    }
+                    start += b;
+                }
+                Insertion(_) | SoftClip(_) | HardClip(_) | Padding(_) => {}
+                Deletion(b) | Skipped(b) | Mismatch(b) => start += b,
+            }
+        }
+        Coverage {
+            r_name: self.r_name.to_string(),
+            cov,
+        }
     }
     pub fn q_name(&self) -> &str {
         &self.q_name
@@ -187,12 +245,13 @@ impl Sam {
     pub fn seq(&self) -> &str {
         &self.seq
     }
+    /// Mapped position (1-based)
     pub fn pos(&self) -> usize {
         self.pos
     }
-    /// Return the mapping region with respect to the query(0-based).
-    /// If wanted to get the range with respect to reference, use `get_range` instead.
-    pub fn mapped_region(&self) -> (usize, usize) {
+    /// Return the mapping region with respect to the query (0-based).
+    /// If wanted to get the range with respect to reference, use `Self::refr_aligned_region` instead.
+    pub fn query_aligned_region(&self) -> (usize, usize) {
         use self::Op::*; // 0-BASED!!!!!
         let (head_clip, middle, _tail_clip, _) =
             self.cigar().iter().fold((0, 0, 0, true), |acc, x| match x {
@@ -206,8 +265,8 @@ impl Sam {
         (head_clip, head_clip + middle)
     }
     /// Return the mapping region with respect to the reference(0-based).
-    /// If wanted to get the range with respect to the query, use `mapped_region` instead.
-    pub fn get_range(&self) -> (usize, usize) {
+    /// If wanted to get the range with respect to the query, use `Self::query_aligned_region` instead.
+    pub fn refr_aligned_region(&self) -> (usize, usize) {
         // Return the position of the genome(measured in template). 0-BASED!!!!
         let start = self.pos;
         if start == 0 {
@@ -224,6 +283,7 @@ impl Sam {
             .sum();
         (start - 1, start + len - 1)
     }
+    /// Return the length of the query.
     pub fn query_length(&self) -> usize {
         self.cigar()
             .iter()
@@ -238,39 +298,24 @@ impl Sam {
             })
             .sum()
     }
-    #[inline]
+    /// Parse and return the Cigar string.
+    /// This method takes `O(|L|)`-time, where `L` is the length of the Cigar string.
     pub fn cigar(&self) -> Vec<Op> {
         parse_cigar_string(&self.cigar)
     }
-    pub fn to_coverage(&self) -> Coverage {
-        let mut cov = vec![];
-        let mut start = self.pos; // reference position
-        for op in &self.cigar() {
-            use self::Op::*;
-            match *op {
-                Align(b) | Match(b) => {
-                    for i in 0..b {
-                        cov.push((start + i, 1));
-                    }
-                    start += b;
-                }
-                Insertion(_) | SoftClip(_) | HardClip(_) | Padding(_) => {}
-                Deletion(b) | Skipped(b) | Mismatch(b) => start += b,
-            }
-        }
-        Coverage {
-            r_name: self.r_name.to_string(),
-            cov,
-        }
-    }
-    pub fn cigar_as_str(&self) -> &str {
+    fn cigar_as_str(&self) -> &str {
         &self.cigar
     }
     fn qual_as_str(&self) -> String {
         self.qual.iter().map(|e| (e + 33) as char).collect()
     }
+    /// Attributes of this record. Usually, each element is formatted as "[TAG_NAME]:[TAG_TYPE]:[TAG_VALUE]".
+    pub fn attr(&self) -> &[String] {
+        self.attr.as_slice()
+    }
 }
 
+/// Alignment operations. Insertions are insertions to the reference, and deletions are deletions from the reference.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Op {
     Align(usize),     //M
@@ -333,7 +378,8 @@ impl Op {
         format!("{}{}", num, op)
     }
 }
-#[inline]
+
+/// Parse a given CIGAR string. If it is not a valid CIGAR, panic.
 pub fn parse_cigar_string(cigar: &str) -> Vec<Op> {
     let mut ops = vec![];
     let mut num = 0;
@@ -350,90 +396,11 @@ pub fn parse_cigar_string(cigar: &str) -> Vec<Op> {
     ops
 }
 
-/// Reconstruct bam alignmnet and output pritty strings.
-/// The seq1 should be the query, while seq2 is the reference.
-/// The first position where the reference consumed should be `pos`.
-/// The return value consists of three vectors of characters,
-/// first for the query, second for operations, and the third for
-/// reference. As to the user can output digit, the output value is vectors,
-/// instead of `String`s.
-/// Note that the sequences should be 'revcomp'ed if the alignment is revcomp.
-pub fn recover_alignment(
-    iter: &[Op],
-    seq1: &[u8],
-    seq2: &[u8],
-    pos: usize,
-) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
-    let empty_string = |len| (0..len).map(|_| " ").collect::<String>();
-    use Op::*;
-    let (mut seq1_with_gap, mut seq2_with_gap, mut operations) = (vec![], vec![], vec![]);
-    let (mut seq1idx, mut seq2idx) = (0, pos - 1);
-    let seq1_header = match iter[0] {
-        SoftClip(l) | HardClip(l) => {
-            seq1idx += l;
-            format!("[head {:06} base]", l)
-        }
-        _ => "[head 000000 base]".to_string(),
-    };
-    let seq2_header = format!("[head {:06} base]", pos);
-    let ops_header = empty_string("[head 000000 base]".len());
-    seq1_with_gap.extend(seq1_header.as_bytes());
-    seq2_with_gap.extend(seq2_header.as_bytes());
-    operations.extend(ops_header.as_bytes());
-    for op in iter {
-        match op {
-            Align(l) | Match(l) | Mismatch(l) => {
-                let l = *l as usize;
-                seq1_with_gap.extend_from_slice(&seq1[seq1idx..(seq1idx + l)]);
-                seq2_with_gap.extend_from_slice(&seq2[seq2idx..(seq2idx + l)]);
-                operations.extend(match_mismatch(
-                    &seq1[seq1idx..(seq1idx + l)],
-                    &seq2[seq2idx..(seq2idx + l)],
-                ));
-                seq1idx += l;
-                seq2idx += l;
-            }
-            Deletion(l) => {
-                let l = *l as usize;
-                seq1_with_gap.extend(vec![b'-'; l]);
-                seq2_with_gap.extend_from_slice(&seq2[seq2idx..(seq2idx + l)]);
-                operations.extend(vec![b' '; l]);
-                seq2idx += l;
-            }
-            Insertion(l) => {
-                let l = *l as usize;
-                seq1_with_gap.extend_from_slice(&seq1[seq1idx..(seq1idx + l)]);
-                seq2_with_gap.extend(vec![b'-'; l]);
-                operations.extend(vec![b' '; l]);
-                seq1idx += l;
-            }
-            _ => {}
-        }
-    }
-    let seq1_footer = match iter.last().unwrap() {
-        SoftClip(l) | HardClip(l) => format!("[tail {:05} bese]", l),
-        _ => "[tail 00000 base]".to_string(),
-    };
-    let seq2_footer = format!("[tail {:05} base]", seq2.len() - seq2idx);
-    let ops_footer = empty_string("[tail 00000 base]".len());
-    seq1_with_gap.extend(seq1_footer.as_bytes());
-    seq2_with_gap.extend(seq2_footer.as_bytes());
-    operations.extend(ops_footer.as_bytes());
-    (seq1_with_gap, operations, seq2_with_gap)
-}
-
-fn match_mismatch(xs: &[u8], ys: &[u8]) -> Vec<u8> {
-    xs.iter()
-        .zip(ys.iter())
-        .map(|(x, y)| if x == y { b'|' } else { b'X' })
-        .collect()
-}
-
 #[test]
 fn cigar_parse() {
     use super::sam::Op::*;
     let cigar = "101S33M2I66M";
-    let processed = parse_cigar_string(&cigar);
+    let processed = parse_cigar_string(cigar);
     eprintln!("{:?}", processed);
     assert_eq!(
         processed,

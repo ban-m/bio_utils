@@ -4,7 +4,6 @@ pub struct PAF {
     pub qlen: usize,
     pub qstart: usize,
     pub qend: usize,
-    // True to forward
     pub relstrand: bool,
     pub tname: String,
     pub tlen: usize,
@@ -18,7 +17,7 @@ pub struct PAF {
 
 impl PAF {
     pub fn new(line: &str) -> Option<Self> {
-        let mut line = line.split("\t");
+        let mut line = line.split('\t');
         let res = Self {
             qname: line.next()?.to_string(),
             qlen: line.next()?.parse().ok()?,

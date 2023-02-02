@@ -87,9 +87,9 @@ impl AlignInfo {
     }
 }
 
-use crate::sam::Sam;
+use crate::sam::Record;
 use std::collections::HashMap;
-pub fn try_from(value: &Sam, length: &HashMap<String, usize>) -> Result<LastTAB, &'static str> {
+pub fn try_from(value: &Record, length: &HashMap<String, usize>) -> Result<LastTAB, &'static str> {
     if value.pos() == 0 {
         return Err("Alignment Invalid");
     }
@@ -98,7 +98,7 @@ pub fn try_from(value: &Sam, length: &HashMap<String, usize>) -> Result<LastTAB,
         .iter()
         .find(|x| x.starts_with("AS"))
         .ok_or("AS tag is not valid.")?
-        .split(":")
+        .split(':')
         .nth(2)
         .ok_or("AS tag does not have sufficient fields.")?
         .parse::<i64>()
@@ -169,7 +169,7 @@ pub fn try_from(value: &Sam, length: &HashMap<String, usize>) -> Result<LastTAB,
         seqname: value.q_name().to_string(),
         seqstart: head_clip,
         matchlen: matchlen_2,
-        direction: direction,
+        direction,
         seqlen: total,
     };
     let lt = LastTAB {

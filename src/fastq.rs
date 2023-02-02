@@ -83,11 +83,9 @@ pub struct Record {
     qual: Vec<u8>,
 }
 
-impl std::convert::Into<(String, Vec<u8>, Vec<u8>)> for Record {
-    fn into(self) -> (String, Vec<u8>, Vec<u8>) {
-        match self {
-            Self { id, seq, qual } => (id, seq, qual),
-        }
+impl std::convert::From<Record> for (String, Vec<u8>, Vec<u8>) {
+    fn from(Record { id, seq, qual }: Record) -> Self {
+        (id, seq, qual)
     }
 }
 

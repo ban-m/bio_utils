@@ -58,13 +58,6 @@ impl<R: io::Read> Reader<R> {
         }
     }
 }
-// impl<R:std::io::Read> Reader<R>{
-//     pub fn show(&self){
-//         for dur in self.time.iter(){
-//             println!("TIME\t{}.{}",dur.as_secs(),dur.subsec_millis());
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone, Default)]
 pub struct Record {
@@ -112,7 +105,7 @@ pub struct Seq {
 
 impl fmt::Display for Seq {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let text = String::from_utf8_lossy(&self.text).to_owned();
+        let text = String::from_utf8_lossy(&self.text).into_owned();
         write!(
             f,
             "s {} {} {} {} {} {}",
@@ -325,12 +318,12 @@ mod tests {
     use super::*;
     #[test]
     fn test_parser() {
-        let file: Vec<_> = Reader::from_file("./testdata/test.maf")
+        let file_num = Reader::from_file("./testdata/test.maf")
             .unwrap()
             .records()
             .filter_map(|e| e.ok())
-            .collect();
-        assert_eq!(file.len(), 2);
+            .count();
+        assert_eq!(file_num, 2);
     }
 
     #[test]

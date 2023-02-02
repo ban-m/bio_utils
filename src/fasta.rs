@@ -110,11 +110,9 @@ impl Record {
     }
 }
 
-impl std::convert::Into<(String, Option<String>, String)> for Record {
-    fn into(self) -> (String, Option<String>, String) {
-        match self {
-            Record { id, desc, seq } => (id, desc, seq),
-        }
+impl std::convert::From<Record> for (String, Option<String>, String) {
+    fn from(Record { id, desc, seq }: Record) -> Self {
+        (id, desc, seq)
     }
 }
 
@@ -139,7 +137,7 @@ pub fn parse_into_vec<P: AsRef<Path>>(file: P) -> std::io::Result<Vec<Record>> {
         let mut header = line[1..].splitn(2, ' ');
         record.id = header.next().unwrap().to_owned();
         record.desc = header.next().map(|e| e.to_owned());
-        while let Some(next) = lines.next() {
+        for next in lines.by_ref() {
             if next.starts_with('>') {
                 line = next;
                 break;
@@ -164,7 +162,8 @@ pub fn parse_into_vec_from<R: io::Read>(reader: R) -> std::io::Result<Vec<Record
         let mut header = line[1..].splitn(2, ' ');
         record.id = header.next().unwrap().to_owned();
         record.desc = header.next().map(|e| e.to_owned());
-        while let Some(next) = lines.next() {
+        for next in lines.by_ref() {
+            //while let Some(next) = lines.next() {
             if next.starts_with('>') {
                 line = next;
                 break;
